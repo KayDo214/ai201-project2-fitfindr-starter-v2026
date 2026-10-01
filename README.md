@@ -59,41 +59,48 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+**What it does:** Searches the available clothing listings for items matching the requested description, size, and maximum price.
+
+**Inputs:**
+- `description` (`str`) — what kind of item the user wants
+- `size` (`str`) — requested clothing size
+- `max_price` (`float`) — highest price the user is willing to pay
+
+**Returns:** A `list` of listing dictionaries. Each listing includes fields such as `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, and `platform`.
+
+**When it has nothing:** Returns an empty list `[]`.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+**What it does:** Suggests an outfit using the newly found item together with items from the user's wardrobe.
+**Inputs:**
+- `new_item` (`dict`) — the selected listing returned by `search_listings`
+- `wardrobe` (`list[dict]`) — the user's existing wardrobe items
+**Returns:** 
+A `str` containing an outfit suggestion that combines the new item with suitable wardrobe items.
+
+**When it has nothing:** 
+Returns a general outfit suggestion based on the new item instead of failing.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+**What it does:** Creates a short caption describing the outfit and the newly selected item.
+
+**Inputs:**
+- `outfit` (`str`) — the outfit suggestion produced by `suggest_outfit`
+- `new_item` (`dict`) — the selected listing
+
+**Returns:**
+A `str` containing a short fit-card caption that someone could realistically post.
+
+**If required input is missing:**
+Returns a clear error message instead of crashing.
 
 ---
 
 ## Planning Loop
 
-<!-- Your branch rule, stated as a rule — the condition AND both paths — plus
-     the file and function that holds it.
-
-     Like this:
-       "If search_listings returns an empty list, put a message in the session
-        and stop. Otherwise take the first result and go to suggest_outfit."
-        — agent.py::run_agent
-
-     The grader checks your code against what you claim here, so the file and
-     function have to be real. -->
-
-**Branch rule:**
+**Branch rule:** If `search_listings` returns an empty list, the agent stores a message explaining that no listing matched and stops. Otherwise, it selects the first listing, stores it in the session, and continues to `suggest_outfit`.
 
 **Where it lives:** `agent.py::run_agent`
 
