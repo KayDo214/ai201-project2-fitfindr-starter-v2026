@@ -35,7 +35,7 @@ def _keywords(text: str) -> set[str]:
     return {w for w in words if w not in _STOPWORDS and len(w) > 1}
 
 def _size_tokens(size: str) -> set[str]:
-    cleaned = re.sub(r"\([^)])*\)", " ", size or "")
+    cleaned = re.sub(r"\([^)]*\)", " ", size or "")
     parts = [p.strip().upper() for p in cleaned.split("/")]
     return {p for p in parts if p}
 
@@ -98,79 +98,125 @@ def search_listings(
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
-    # TODO: replace this with your implementation
-    return []
+    listings = load_listings()
+    query_words = _keywords(description)
+
+    scored_matches = []
+
+    for listing in listings:
+        # Price filter
+        if max_price is not None and listing["price"] > max_price:
+            continue
+
+        # Size filter
+        if size and not _size_matches(size, listing["size"]):
+            continue
+
+        # Build searchable text from useful listing fields
+        searchable_parts = [
+            listing.get("title", ""),
+            listing.get("description", ""),
+            listing.get("category", ""),
+            " ".join(listing.get("style_tags", [])),
+            " ".join(listing.get("colors", [])),
+            listing.get("brand") or "",
+        ]
+
+        listing_words = _keywords(" ".join(searchable_parts))
+
+        # Number of query keywords found in listing
+        score = len(query_words & listing_words)
+
+        if score == 0:
+            continue
+
+        scored_matches.append((score, listing))
+
+    # Best keyword overlap first
+    scored_matches.sort(key=lambda pair: pair[0], reverse=True)
+
+    return [
+        listing
+        for _, listing in scored_matches[:config.SEARCH_RESULT_LIMIT]
+    ]
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
 
 def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
+    items = wardrobe.get("items", [])
+
+    if not items:
+        prompt = f"""
+    You are helping someone style a thrifted clothing item.
+
+    New item:
+    Title: {new_item.get("title")}
+    Category: {new_item.get("category")}
+    Colors: {", ".join(new_item.get("colors", []))}
+    Style tags: {", ".join(new_item.get("style_tags", []))}
+
+    The user has no wardrobe items available.
+
+    Suggest one or two general ways they could style this item.
+    Keep the answer concise and practical.
     """
-    Given a thrifted item and the user's wardrobe, suggest one or two outfits.
+    else:
+        wardrobe_text = "\n".join(
+            f"- {item.get('name')} | "
+            f"category: {item.get('category')} | "
+            f"colors: {', '.join(item.get('colors', []))} | "
+            f"styles: {', '.join(item.get('style_tags', []))}"
+            for item in items
+        )
 
-    This one calls the model, through `generate()`. You don't need to think
-    about rate limits — the adapter handles pacing for you.
+        prompt = f"""
+    You are helping someone build an outfit around a thrifted item.
 
-    Args:
-        new_item: a listing dict — the item the user is considering.
-        wardrobe: a wardrobe dict with an 'items' key holding a list of items.
-                  **It may be empty.** Handle that.
+    New item:
+    Title: {new_item.get("title")}
+    Category: {new_item.get("category")}
+    Colors: {", ".join(new_item.get("colors", []))}
+    Style tags: {", ".join(new_item.get("style_tags", []))}
 
-    Returns:
-        A non-empty string with outfit suggestions.
-        With an empty wardrobe, return general styling advice rather than
-        raising or returning "". Unit 4 has you trigger the empty wardrobe on
-        purpose, so decide now what it should do.
+    The user's wardrobe:
+    {wardrobe_text}
 
-    TODO:
-        1. Check whether wardrobe['items'] is empty.
-        2. If it is, ask the model for general styling ideas for this item.
-        3. If it isn't, format the wardrobe items into the prompt and ask for
-           specific combinations naming pieces the user already owns.
-        4. Return the model's response.
-
-    Test it from a terminal before you move on:
-        python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+    Suggest one or two outfits using the new item together with specific pieces
+    from the user's wardrobe. Name the wardrobe pieces you use.
+    Keep the answer concise and practical.
     """
-    # TODO: replace this with your implementation
-    return ""
+
+    return generate(prompt)
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
 
 def create_fit_card(outfit: str, new_item: dict) -> str:
+    if not outfit or not outfit.strip():
+        return "I couldn't create a fit card because no outfit suggestion was available."
+
+    prompt = f"""
+    Write a short social-media-style caption for this thrifted outfit.
+
+    New item:
+    Title: {new_item.get("title")}
+    Price: ${new_item.get("price")}
+    Platform: {new_item.get("platform")}
+    Colors: {", ".join(new_item.get("colors", []))}
+    Style tags: {", ".join(new_item.get("style_tags", []))}
+
+    Outfit suggestion:
+    {outfit}
+
+    Requirements:
+    - Write 2 to 4 sentences.
+    - Mention the thrifted item.
+    - Mention its price once.
+    - Mention the platform once.
+    - Describe the vibe of the outfit.
+    - Make it sound like something a person might actually post.
     """
-    Write a short caption someone would actually post about the find.
 
-    This calls the model too.
+    return generate(prompt)
 
-    Args:
-        outfit:   the outfit suggestion string from suggest_outfit().
-        new_item: the listing dict for the item.
-
-    Returns:
-        A two-to-four sentence caption.
-        If `outfit` is empty or whitespace, return a descriptive message rather
-        than raising.
-
-    The caption should read like a real post rather than a product description,
-    mention the item and its price and platform once each, and be specific about
-    the vibe.
-
-    It should also come out **differently for different inputs**. If you run
-    this three times on the same item and get three word-for-word identical
-    strings, it's one of two things, and both are near the top of `config.py`:
-
-        • CACHE_ENABLED — the adapter handed back an answer it already had
-        • TEMPERATURE   — at 0.0 the model gives the same words every time
-
-    TODO:
-        1. Guard against an empty or whitespace-only `outfit`.
-        2. Build a prompt with the item details and the outfit.
-        3. Call generate() and return the response.
-
-    Test it from a terminal before you move on:
-        python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
-    """
-    # TODO: replace this with your implementation
-    return ""
