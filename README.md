@@ -39,8 +39,7 @@
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
-
+FitFindr is an agent that helps a user find a thrifted clothing item and build an outfit around it. The user provides a natural-language request such as a vintage graphic tee under a certain price. The agent searches the available listings, selects a matching item, suggests an outfit using the user's wardrobe, and creates a short fit-card caption. If no listing matches, the agent stops early and tells the user what they can change in the search.
 
 
 ---
@@ -75,7 +74,7 @@
 **What it does:** Suggests an outfit using the newly found item together with items from the user's wardrobe.
 **Inputs:**
 - `new_item` (`dict`) — the selected listing returned by `search_listings`
-- `wardrobe` (`list[dict]`) — the user's existing wardrobe items
+- `wardrobe` (`dict`) — a wardrobe dictionary whose `items` key contains the user's existing wardrobe items
 **Returns:** 
 A `str` containing an outfit suggestion that combines the new item with suitable wardrobe items.
 
@@ -104,65 +103,138 @@ Returns a clear error message instead of crashing.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** The query is parsed with regular expressions. The loop extracts a price from phrases such as `under $30` and a size from phrases such as `size M`. Those parts are removed from the original query, and the remaining text becomes the item description.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** The parsed description, size, and maximum price are stored in `session["parsed"]`. Search results go into `session["search_results"]`, the first result becomes `session["selected_item"]`, the outfit result goes into `session["outfit_suggestion"]`, and the final caption goes into `session["fit_card"]`. If search returns no results, `session["error"]` is set and the loop stops.
 
 ---
 
 ## Sample Run
 
-<!-- Two things go here.
-
-     1. One FULL query and its output, pasted as text.
-     2. Your three per-tool terminal tests — the command and what it printed. -->
-
 **One full query**
 
-```
-$ python app.py ask '...'
+```text
+$ python agent.py
 
-```
+=== A query the data can match ===
+  found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+  outfit:   Here is a fun, balanced outfit using your new Y2K butterfly baby tee:
+
+**Outfit: Streetwear Y2K Contrast**
+*   **Top:** Y2K Butterfly Baby Tee (New item)
+*   **Bottoms:** Baggy straight-leg jeans (dark wash)
+*   **Outerwear:** Vintage black denim jacket
+*   **Shoes:** Chunky white sneakers
+*   **Accessories:** Black crossbody bag
+
+**Why it works:** The fitted silhouette of the baby tee balances out the relaxed,
+baggy fit of the dark wash jeans for a classic Y2K proportions play. Throwing on
+the black denim jacket and chunky white sneakers keeps the streetwear vibe cohesive
+while letting the pink and purple butterfly print pop.
+
+  fit card: Mastering that classic Y2K proportion play is so easy when you style
+this thrifted butterfly baby teewith some baggy dark wash denim. I threw on a black
+jacket and chunky sneakers to complete the streetwear vibe while letting those pink
+and purple graphics pop. Grab this little tee on my Depop right now for just $18! 🦋✨
+
+=== A query it can't ===
+  stopped: No matching listings were found. Try a broader description, another
+  size, or a higher price limit.
+  fit_card is None — it should still be None here
+
+The second one should stop before the fit card. If both paths look the same,
+the branch isn't doing anything yet.
 
 **The three tools, tested one at a time**
 
 ```
 $ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
 
-```
+```text
+$ python -c "from tools import search_listings; print(search_listings('graphic tee', size='L', max_price=30))"
 
+[
+  {
+    'id': 'lst_006',
+    'title': 'Graphic Tee — 2003 Tour Bootleg Style',
+    'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.',
+    'category': 'tops',
+    'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'],
+    'size': 'L',
+    'condition': 'good',
+    'price': 24.0,
+    'colors': ['black'],
+    'brand': None,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_033',
+    'title': 'Vintage Band Tee — Faded Grey',
+    'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.',
+    'category': 'tops',
+    'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'],
+    'size': 'L',
+    'condition': 'fair',
+    'price': 19.0,
+    'colors': ['grey', 'charcoal'],
+    'brand': None,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_015',
+    'title': 'Vintage Graphic Hoodie — Faded Black',
+    'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.',
+    'category': 'tops',
+    'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'],
+    'size': 'L',
+    'condition': 'fair',
+    'price': 26.0,
+    'colors': ['black', 'charcoal'],
+    'brand': None,
+    'platform': 'depop'
+  }
+]
 ```
 $ python -c "from tools import suggest_outfit; ..."
 
 ```
-
+Scored these vintage Levi's 501s for just $38 on Depop and I'm obsessed!
+Throwing them on with some fresh white sneakers gives off the ultimate effortless
+streetwear vibe. Grab them before I change my mind and keep them all to myself! ✨👖
 ```
 $ python -c "from tools import create_fit_card; ..."
+```text
+Here are two ways to style your new Vintage Levi's 501 Jeans using items from your wardrobe:
 
+**Outfit 1: Casual Streetwear**
+*   **Top:** White ribbed tank top (tucked in)
+*   **Outerwear:** Vintage black denim jacket
+*   **Shoes:** Chunky white sneakers
+*   **Accessories:** Black crossbody bag
+*   *Why it works:* The fitted white tank balances the classic straight-leg fit of the 501s, while the black denim jacket and chunky sneakers lean into an effortless, vintage-meets-streetwear aesthetic.
+
+**Outfit 2: Cozy & Classic**
+*   **Top:** Oversized grey crewneck sweatshirt 
+*   **Shoes:** Black combat boots
+*   **Accessories:** Brown leather belt
+*   *Why it works:* Tucking the medium wash denim into the brown belt adds definition, paired with the oversized grey crewneck and combat boots for a grunge-leaning, comfortable everyday look.
 ```
 
 ---
 
 ## How I Used AI
 
-<!-- Two specific moments. What you asked, what came back, what you changed.
-
-     "I used Claude to help me code" is not enough.
-
-     "I gave Claude my search_listings spec. It returned None on no match
-     instead of an empty list, so I changed it" is the level we want. -->
-
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked AI to explain the difference between a normal pipeline and an agent planning loop, and how session state works in this project.
+- *What came back:* It explained that the important difference is the branch after `search_listings`, and that results should move through the session so later tools can use them.
+- *What I changed:* I used that explanation to write my Planning Loop section and to understand why the selected item, outfit suggestion, and fit card should each be stored in the session.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I used AI to help implement the planning loop in `agent.py`.
+- *What came back:* It suggested using a `next_step` variable inside a `while` loop, with states for parsing, search, item selection, outfit generation, and fit-card generation.
+- *What I changed:* I kept that structure and verified that the no-results branch returns immediately before `suggest_outfit`, while a successful search continues through the remaining tools.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
