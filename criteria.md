@@ -25,9 +25,7 @@ Given a query that matches at least one listing, the agent completes all three
 tool calls and returns a fit card — in at least 4 of 5 tries.
 
 **Why this target:**
-<!-- Why 4 of 5 and not 5 of 5? Something about your search, probably —
-     "my search is a plain keyword match and some phrasings will miss" is a
-     real answer. -->
+I chose 4 of 5 instead of 5 of 5 because the agent uses model-based tools (usually, function that calls an AI model) for outfit generations and fit_card generation so the output can vary. Despite the variation, a matching query should still complete the full workflow most of the time.
 
 ---
 
@@ -37,66 +35,44 @@ Given a query that matches no listings, the agent stops before calling
 `suggest_outfit` and returns a message naming what to change — 5 of 5 tries.
 
 **Why this target:**
-<!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
-     about this path? -->
+I chose 5 of 5 because this behavior is controlled by the planning loop, not by a model-generated response. If `search_listings` returns no matches, the agent should always stop before calling `suggest_outfit` and tell the user what they could change in their search.
 
 ---
 
 ## 3. Something about state
 
-<!-- YOU WRITE THIS ONE.
-
-     How would you know that the item your search found is the same item the
-     next tool received? Name something countable or observable.
-
-     This is the criterion people find hardest, because state failure doesn't
-     look like state failure — it looks like a tool problem. Something that
-     compares session["selected_item"] against what actually reached
-     suggest_outfit is the shape you're after. -->
-
-
+Given a successful search, the listing stored in
+`session["selected_item"]` has the same `id` as the `new_item`
+passed to `suggest_outfit` — 5 of 5 tries.
 
 **Why this target:**
-
-
+I chose 5 of 5 because session state is deterministic program logic.
+The same selected listing should always be passed to the next tool.
 
 ---
 
-## 4. Something about the fit card
+## 4. The fit card includes the selected item
 
-<!-- YOU WRITE THIS ONE.
-
-     The fit card calls a model, so the same input can produce different words
-     each time. That's not a bug — it's the nature of the tool. So what would
-     make it acceptable?
-
-     Think about what you'd actually be unhappy to see. A caption that never
-     mentions the price? Two different items producing the same opening
-     sentence? A card longer than a caption anyone would post? Any of those can
-     be turned into a number. -->
-
-
+Given a successful run, the fit card refers to the selected item and
+describes the outfit in a short, readable caption — in at least 4 of 5 tries.
 
 **Why this target:**
-
-
+I chose 4 of 5 because `create_fit_card` uses a language model, so its
+wording can vary between runs. The exact wording does not need to match,
+but the result should still clearly describe the selected item and outfit.
 
 ---
 
-## 5. Your choice
+## 5. Search results respect the user's constraints
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. Speed, the empty
-     wardrobe path, what happens when the model can't be reached, whether the
-     search respects a price ceiling — anything, as long as it names a number
-     or an observable outcome. -->
-
-
+Given a query that returns at least one listing, the selected listing
+must be at or below the requested maximum price and match the requested
+size — 5 of 5 tries.
 
 **Why this target:**
-
-
+I chose 5 of 5 because price and size filtering are handled by normal
+program logic rather than model generation, so these constraints should
+be applied consistently.
 
 ---
 
