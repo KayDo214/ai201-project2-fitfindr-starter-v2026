@@ -12,10 +12,12 @@ Build and test your three tools in `tools.py` first. Then come here.
 
     python agent.py          runs both example paths below
 """
+
 import re
 import config
 import trace
-from tools import search_listings, suggest_outfit, create_fit_card
+from tools import suggest_outfit, create_fit_card
+from mcp_client import call_tool
 from generate import ModelUnavailable
 
 
@@ -50,28 +52,6 @@ def new_session(query: str, wardrobe: dict) -> dict:
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 def run_agent(query: str, wardrobe: dict) -> dict:
-    """
-    Run the loop once and return the finished session.
-
-    Args:
-        query:    what the user asked for, in plain language
-                  (e.g. "vintage graphic tee under $30, size M").
-        wardrobe: a wardrobe dict — get_example_wardrobe() or
-                  get_empty_wardrobe() from utils/data_loader.py.
-
-    Returns:
-        The session dict. **Check session["error"] first** — if it isn't None,
-        the run ended early and the later fields will still be None.
-
-    ─────────────────────────────────────────────────────────────────────────
-    IN UNIT 4 you come back and add two things:
-
-      • Trace calls. One per step. `trace.step("search_listings", inputs=...,
-        returned=...)` — see trace.py. Your README needs the output.
-
-      • A handler for ModelUnavailable, so a bad key produces a message rather
-        than a stack trace. The import is already at the top of this file.
-    """
     session = new_session(query, wardrobe)
     next_step = "parse_query"
     iteration = 0
@@ -110,31 +90,59 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 "size": size_match.group(1).upper() if size_match else None,
                 "max_price": float(price_match.group(1)) if price_match else None,
             }
+            trace.step("parse_query", inputs=query, returned=str(session["parsed"]))
             next_step = "search_listings"
 
         elif next_step == "search_listings":
-            session["search_results"] = search_listings(**session["parsed"])
-            if not session["search_results"]:
+            results = call_tool("search_listings", {
+                "description": session["parsed"]["description"],
+                "size": session["parsed"]["size"],
+                "max_price": session["parsed"]["max_price"],
+            })
+            session["search_results"] = results
+            trace.step(
+                "search_listings (via MCP)",
+                inputs=str(session["parsed"]),
+                returned=results,
+                note=f"{len(results)} match(es)",
+            )
+
+            if not results:
                 session["error"] = (
                     "No matching listings were found. Try a broader description, "
                     "another size, or a higher price limit."
+                )
+                trace.step(
+                    "branch",
+                    note="search returned []: stopping before suggest_outfit",
                 )
                 return session
             next_step = "select_item"
 
         elif next_step == "select_item":
             session["selected_item"] = session["search_results"][0]
+            trace.step("select_item", returned=session["selected_item"])
             next_step = "suggest_outfit"
 
         elif next_step == "suggest_outfit":
             session["outfit_suggestion"] = suggest_outfit(
                 session["selected_item"], session["wardrobe"]
             )
+            trace.step(
+                "suggest_outfit",
+                inputs=session["selected_item"],
+                returned=session["outfit_suggestion"],
+            )
             next_step = "create_fit_card"
 
         elif next_step == "create_fit_card":
             session["fit_card"] = create_fit_card(
                 session["outfit_suggestion"], session["selected_item"]
+            )
+            trace.step(
+                "create_fit_card",
+                inputs=session["selected_item"],
+                returned=session["fit_card"],
             )
             return session
 
