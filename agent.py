@@ -125,9 +125,21 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             next_step = "suggest_outfit"
 
         elif next_step == "suggest_outfit":
-            session["outfit_suggestion"] = suggest_outfit(
-                session["selected_item"], session["wardrobe"]
-            )
+            try:
+                session["outfit_suggestion"] = suggest_outfit(
+                    session["selected_item"], session["wardrobe"]
+                )
+            except ModelUnavailable as exc:
+                session["error"] = (
+                    "The outfit model is temporarily unavailable. Please try again later."
+                )
+                trace.step(
+                    "suggest_outfit error",
+                    inputs=session["selected_item"],
+                    note=f"ModelUnavailable: {exc}",
+                )
+                return session
+
             trace.step(
                 "suggest_outfit",
                 inputs=session["selected_item"],
@@ -136,9 +148,21 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             next_step = "create_fit_card"
 
         elif next_step == "create_fit_card":
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
-            )
+            try:
+                session["fit_card"] = create_fit_card(
+                    session["outfit_suggestion"], session["selected_item"]
+                )
+            except ModelUnavailable as exc:
+                session["error"] = (
+                    "The fit-card model is temporarily unavailable. Please try again later."
+                )
+                trace.step(
+                    "create_fit_card error",
+                    inputs=session["selected_item"],
+                    note=f"ModelUnavailable: {exc}",
+                )
+                return session
+
             trace.step(
                 "create_fit_card",
                 inputs=session["selected_item"],

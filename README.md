@@ -358,6 +358,14 @@ Before the rewire, `agent.py` called `tools.py::search_listings` directly. After
 
 The main visible difference is that the trace now shows `search_listings (via MCP)`.
 
+### Failure-mode checks
+
+I deliberately tested three failure modes:
+
+1. **Empty search result:** an impossible query returned `[]`, so the agent stopped before `suggest_outfit`.
+2. **Empty wardrobe:** `suggest_outfit` received no wardrobe items and returned general styling advice instead of crashing.
+3. **Model unavailable:** I forced a model-backed tool to raise `ModelUnavailable`. The agent caught it, stored a readable error in the session, recorded the failure in the trace, and returned without crashing.
+
 ---
 
 ## The Improvement
