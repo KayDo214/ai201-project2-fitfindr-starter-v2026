@@ -245,168 +245,158 @@ Here are two ways to style your new Vintage Levi's 501 Jeans using items from yo
 
 ## Run Log — Before
 
-<!-- Five criteria, five tries each, in this exact format.
+I ran all five acceptance criteria five times each with caching disabled using:
 
-     Five, because your criteria are written out of five. Mark each try PASS
-     or FAIL, count the passes, and read that count against your target — a
-     row targeting 4 of 5 with three PASS cells is MISSED (3/5).
-
-     `python run_eval.py --label before` runs everything and writes the table
-     into results/. Paste it here and fill in the verdicts. -->
+```bash
+python run_eval.py --label before
+```
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools and returns a fit card | At least 4/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 2. Impossible query stops before `suggest_outfit` and returns a useful message | 5/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 3. Selected item stays consistent when passed into `suggest_outfit` | 5/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 4. Fit card refers to the selected item and describes the outfit | At least 4/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 5. Search results respect requested size and maximum price | 5/5 | MET | MET | MET | MET | MET | MET — 5/5 |
 
 **Real output from one try**, pasted as text, naming the file and function
-that produced it:
+that produced it: 
+
+Produced by `agent.py::run_agent` and recorded by `run_eval.py`.
 
 ```
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
 
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+      →    10 match(es)
+
+[3] select_item
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+
+[4] suggest_outfit
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+
+[5] create_fit_card
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+
+try 1: completed — fit card 296 chars
 ```
 
 ---
 
 ## Verdicts and Diagnoses
 
-<!-- MET or MISSED per criterion against LAST UNIT's target, plus a sentence on
-     how you decided.
-
-     Then, for every miss: which of the four places it happened — a tool, the
-     loop's branch, the session, or the model's output — AND the mechanism.
-
-     Not a diagnosis:  "The fit card was bad."
-     A diagnosis:      "The fit card criterion missed on 2 of 5 items. Both had
-                        an empty brand field. My prompt puts the brand in the
-                        first sentence, so the card opened with a blank and read
-                        like a fragment. The tool worked; the prompt assumed a
-                        field that isn't always there."
-
-     Look for a pattern. Three misses on the same tool is one problem, not
-     three. -->
-
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools and returns a fit card | At least 4/5 | MET — 5/5 | All five runs reached `suggest_outfit` and `create_fit_card` and produced a non-empty fit card. |
+| 2 | Impossible query stops before `suggest_outfit` and returns a useful message | 5/5 | MET — 5/5 | All five runs returned an empty search result, took the early-stop branch, and did not call `suggest_outfit`. |
+| 3 | Selected item stays consistent when passed into `suggest_outfit` | 5/5 | MET — 5/5 | In every run, the item shown by `select_item` was the same item shown as the input to `suggest_outfit`. |
+| 4 | Fit card refers to the selected item and describes the outfit | At least 4/5 | MET — 5/5 | All five fit cards referred to the selected item and included styling or outfit information. |
+| 5 | Search results respect requested size and maximum price | 5/5 | MET — 5/5 | The query was consistently parsed as size `L` with a maximum price of `$30`, and the returned results stayed within those constraints. |
 
 **Diagnoses**
 
+None of the five acceptance criteria missed their original targets, so there was no required miss diagnosis.
 
+However, the evaluation exposed a search-quality weakness that is not captured by the current criteria. For the query `denim jacket under $50`, `search_listings` returned loosely related results such as jeans and other kinds of jackets. The likely mechanism is the keyword-overlap scoring in `tools.py`: a listing can be accepted when it shares only one keyword with the query. For example, jeans may match on `denim`, while a track jacket may match on `jacket`.
+
+This does not violate the current acceptance criteria, but it is a good candidate for the measured improvement.
 
 ---
 
 ## Loop Trace
 
-<!-- One full run, printed step by step, with the MCP call visible in it.
-
-     `python app.py ask '...' --trace` once you've added the trace.step()
-     calls in Milestone 2.
-
-     Worth pasting BOTH the happy path and the empty-search path. The empty
-     one should be visibly shorter, because it stops. If your two traces are
-     the same length, your branch isn't working — and this is the fastest way
-     anyone will ever find that out. -->
+     
 
 **Happy path**
 
 ```
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
 
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+      →    10 match(es)
+
+[3] select_item
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+
+[4] suggest_outfit
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+
+[5] create_fit_card
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
 ```
 
 **Empty search**
 
 ```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
 
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    0 match(es)
+
+[3] branch
+      →    search returned []: stopping before suggest_outfit
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+**On the MCP move:**
 
+Before the rewire, `agent.py` called `tools.py::search_listings` directly. After the change, `agent.py` calls `mcp_client.call_tool("search_listings", ...)`, which sends the request through `mcp_server.py`.
 
+`mcp_server.py` exposes `search_listings` as an MCP tool and forwards the inputs to the original implementation in `tools.py`. The returned data still has the same list-of-dictionaries structure, so the rest of the planning loop did not need to change.
+
+The main visible difference is that the trace now shows `search_listings (via MCP)`.
 
 ---
 
 ## The Improvement
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
-
-     `python run_eval.py --label after` -->
-
 **What I changed:**
 
+I tightened the keyword matching in `tools.py::search_listings`. Previously, any listing with at least one overlapping keyword could be included. After the change, queries with two or more keywords require at least two keyword matches.
+
 **Which failure it was meant to fix:**
+
+The before-run exposed a search-quality weakness. The query `denim jacket under $50` returned loosely related items such as jeans and other jackets because matching only `denim` or only `jacket` was enough to keep a result.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools and returns a fit card | At least 4/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 2. Impossible query stops before `suggest_outfit` and returns a useful message | 5/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 3. Selected item stays consistent when passed into `suggest_outfit` | 5/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 4. Fit card refers to the selected item and describes the outfit | At least 4/5 | MET | MET | MET | MET | MET | MET — 5/5 |
+| 5. Search results respect requested size and maximum price | 5/5 | MET | MET | MET | MET | MET | MET — 5/5 |
 
 **Did it help, and how do I know:**
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+Yes. Before the change, the query `denim jacket under $50` returned 7 results, including loosely related items such as jeans and other jackets.
 
+After the change, the same query consistently returned only one result: `Denim Jacket — Light Wash, Cropped`.
 
+The original five acceptance criteria still passed after the change, so the stricter matching improved search relevance without breaking the existing behavior.
 
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+All five acceptance criteria passed after the improvement.
 
+Search relevance is still based on simple keyword overlap, so it is not a true semantic search. A listing can still match because relevant words appear in style tags or descriptions even when the exact item category is not a perfect match.
 
-
-<!-- ═════════════════════════════════════════════════════════════════════
-
-     SUBMISSION CHECKLIST — unit 3
-
-       [ ] criteria.md has five numbered criteria, each with a target
-       [ ] Each criterion has a reason underneath it
-       [ ] All five unit 3 sections above have real content
-       [ ] Tool Inventory: all three tools, inputs WITH TYPES, a specific
-           return value, and the empty case
-       [ ] Planning Loop names the branch rule and agent.py::run_agent
-       [ ] Sample Run: one full query plus the three per-tool tests, as text
-       [ ] At least four new commits
-       [ ] Repository URL submitted — WRITE IT DOWN, you submit the same one
-           next unit
-
-     SUBMISSION CHECKLIST — unit 4
-
-       [ ] mcp_server.py exists with one tool registered
-           (or a written record of exactly where the rewire broke)
-       [ ] Run Log — Before, five criteria, five tries each
-       [ ] Real output pasted underneath, naming file and function
-       [ ] A verdict on every criterion
-       [ ] A diagnosis for every miss, naming a place AND a mechanism
-       [ ] Loop Trace, with the MCP call visible in it
-       [ ] All three failure modes triggered and handled
-       [ ] One improvement, with Run Log — After in the same format
-       [ ] What's Still Broken
-       [ ] At least four new commits
-       [ ] The SAME repository URL as last unit
-
-     Do not delete and recreate this repository. Your commit history is what
-     shows your criteria existed before your results did.
-     ═════════════════════════════════════════════════════════════════════ -->
+For this unit, I stopped after improving the most obvious partial-match problem and verifying that the original criteria still passed. A future improvement could use category-aware scoring or semantic similarity for better ranking.
 
 ---
 

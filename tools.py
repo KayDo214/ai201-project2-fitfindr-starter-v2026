@@ -127,7 +127,9 @@ def search_listings(
         # Number of query keywords found in listing
         score = len(query_words & listing_words)
 
-        if score == 0:
+        if len(query_words) >= 2 and score < 2:
+            continue
+        elif score == 0:
             continue
 
         scored_matches.append((score, listing))
